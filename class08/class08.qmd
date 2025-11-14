@@ -1,0 +1,361 @@
+---
+title: "Class 08: Breast Cancer Analysis Project"
+author: "Seona Patel (PID: A69035519)"
+format: pdf
+toc: true
+---
+
+## Background
+
+The goal of this mini-project is for you to explore a complete analysis using the unsupervised learning techniques covered in class. We will extend what we learned by combining PCA as a preprocessing step to clustering using data that consist of measurements of cell nuclei of human breast masses.
+
+The data itself comes from the Wisconsin Breast Cancer Diagnostic Data Set first reported by K. P. Benne and O. L. Mangasarian: “Robust Linear Programming Discrimination of Two Linearly Inseparable Sets”.
+
+Values in this data set describe characteristics of the cell nuclei present in digitized images of a fine needle aspiration (FNA) of a breast mass.
+
+## Data Import
+
+```{r}
+# Save your input data file into your Project directory
+fna.data <- "WisconsinCancer.csv"
+
+# Complete the following code to input the data and store as wisc.df
+wisc.df <- read.csv(fna.data, row.names=1)
+```
+
+```{r}
+head(wisc.df, 3)
+```
+Make sure we do not include sample id or diagnosis columns in the data that we analyze below. 
+
+```{r}
+# We can use -1 here to remove the first column
+wisc.data <- wisc.df[,-1]
+```
+
+```{r}
+head(wisc.data, 3)
+```
+
+```{r}
+# Create diagnosis vector for later 
+diagnosis <- as.factor(wisc.df$diagnosis)
+```
+## Exploratory Data Analysis
+
+> Q1. How many observations are in this dataset?
+
+There are `r nrow(wisc.data)` rows and `r ncol(wisc.data)` columns in this dataset.
+
+> Q2. How many of the observations have a malignant diagnosis?
+
+There are `r sum(wisc.df$diagnosis == "M")` observations that have a malignant diagnosis.
+
+```{r}
+
+sum(wisc.df$diagnosis == "M")
+```
+
+> Q3. How many variables/features in the data are suffixed with _mean?
+
+```{r}
+#colnames(wisc.data)
+length(grep("_mean", colnames(wisc.data)))
+
+```
+
+There are 10 variables/features in the data are suffixed with "_mean"
+
+
+## Principal Component Analysis
+
+The main function in base R for PCA is called `prcomp()`
+
+`scale` = a logical value indicating wheehr the variables should be scaled before the analysis happens. The default is FALSE, but generally scaling is advisable. 
+
+We always want to `scale` our data prior to PCA to ensure that each feature contributes equally to the analysis, preventing variables with larger scales from overpowering.  
+
+There are as many PCs as number of variables measured in the dataset.
+
+```{r}
+wisc.pr <- prcomp(wisc.data, scale=T)
+summary(wisc.pr)
+```
+
+> Q4. From your results, what proportion of the original variance is captured by the first principal components (PC1)?
+
+44.27% of the variance is captured by PC1
+
+> Q5. How many principal components (PCs) are required to describe at least 70% of the original variance in the data?
+
+3 PCs are required to describe at least 70% of the original variance in the data. 
+
+> Q6. How many principal components (PCs) are required to describe at least 90% of the original variance in the data?
+
+7 PCs are required to describe at least 90% of the original variance in the data. 
+
+## Interpreting PCA Results
+
+```{r}
+biplot(wisc.pr)
+```
+
+
+ > Q7. What stands out to you about this plot? Is it easy or difficult to understand? Why?
+ 
+ This is very difficult to understand and super chaotic because there are so many points on the graph that overlap you can't tell anything apart. 
+ 
+ 
+
+Let's make our main result figure - the "PC plot" or "score plot", "orientation plot"....
+
+```{r}
+df <- as.data.frame(wisc.pr$x)
+head(df)
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(wisc.pr$x) +
+  aes(PC1, PC2, col=diagnosis) +
+  geom_point()
+
+```
+
+> Q8. Generate a similar plot for principal components 1 and 3. What do you notice about these plots?
+
+```{r}
+ggplot(wisc.pr$x) +
+  aes(PC1, PC3, col=diagnosis) +
+  geom_point()
+```
+
+Since PC3 captures less variance than PC2, the distinction between clusters is less apparent in this plot. Overall, the plots indicate that principal component 1 is capturing a separation of malignant (blue) from benign (pink) samples. 
+
+## Variance
+
+In this exercise, you will produce scree plots showing the proportion of variance explained as the number of principal components increases. The data from PCA must be prepared for these plots, as there is not a built-in function in base R to create them directly from the PCA model.
+
+As you look at these plots, ask yourself if there’s an ‘elbow’ in the amount of variance explained that might lead you to pick a natural number of principal components. If an obvious elbow does not exist, as is typical in some real-world datasets, consider how else you might determine the number of principal components to retain based on the scree plot.
+
+Calculate the variance of each principal component by squaring the sdev component of wisc.pr (i.e. wisc.pr$sdev^2). Save the result as an object called pr.var.
+
+```{r}
+# Calculate variance of each component
+pr.var <- wisc.pr$sdev^2
+head(pr.var)
+
+```
+```{r}
+# Variance explained by each principal component: pve
+pve <- pr.var / sum(pr.var)
+
+# Plot variance explained for each principal component
+plot(pve, xlab = "Principal Component", 
+     ylab = "Proportion of Variance Explained", 
+     ylim = c(0, 1), type = "o")
+```
+```{r}
+## ggplot based graph
+
+library(factoextra)
+fviz_eig(wisc.pr, addlabels = TRUE)
+```
+
+## Communicating PCA Results 
+
+In this section we will check your understanding of the PCA results, in particular the loadings and variance explained. The loadings, represented as vectors, explain the mapping from the original features to the principal components. The principal components are naturally ordered from the most variance explained to the least variance explained.
+
+> Q9. For the first principal component, what is the component of the loading vector (i.e. wisc.pr$rotation[,1]) for the feature concave.points_mean? This tells us how much this original feature contributes to the first PC.
+
+```{r}
+wisc.pr$rotation["concave.points_mean", 1]
+```
+ -0.26085376 is the component of the loading vector for the feature concave.points_mean.
+
+
+## Hierarchical Clustering 
+
+The goal of this section is to do hierarchical clustering of the original data. Recall from class that this type of clustering does not assume in advance the number of natural groups that exist in the data (unlike K-means clustering).
+
+As part of the preparation for hierarchical clustering, the distance between all pairs of observations are computed. Furthermore, there are different ways to link clusters together, with single, complete, and average being the most common “linkage methods”.
+
+First scale the `wisc.data` data and assign the result to `data.scaled`.
+
+```{r}
+# Scale the wisc.data data using the "scale()" function
+data.scaled <- scale(wisc.data)
+```
+
+Calculate the (Euclidean) distances between all pairs of observations in the new scaled dataset and assign the result to `data.dist`.
+
+```{r}
+data.dist <- dist(data.scaled)
+```
+
+Create a hierarchical clustering model using complete linkage. Manually specify the method argument to `hclust()` and assign the results to `wisc.hclust`.
+
+```{r}
+wisc.hclust <- hclust(data.dist, method = "complete")
+
+```
+
+## Results of hierarchical clustering
+Let’s use the hierarchical clustering model you just created to determine a height (or distance between clusters) where a certain number of clusters exists.
+
+> Q10. Using the plot() and abline() functions, what is the height at which the clustering model has 4 clusters?
+
+```{r}
+plot(wisc.hclust)
+abline(h=19, col="red", lty=2)
+```
+The height at which there are 4 clusters is 19. 
+
+## Selecting number of clusters
+
+In this section, you will compare the outputs from your hierarchical clustering model to the actual diagnoses. Normally when performing unsupervised learning like this, a target variable (i.e. known answer or labels) isn’t available. We do have it with this dataset, however, so it can be used to check the performance of the clustering model.
+
+When performing supervised learning - that is, when you’re trying to predict some target variable of interest and that target variable is available in the original data - using clustering to create new features may or may not improve the performance of the final model.
+
+This exercise will help you determine if, in this case, hierarchical clustering provides a promising new feature.
+
+Use `cutree()` to cut the tree so that it has 4 clusters. Assign the output to the variable `wisc.hclust.clusters`.
+
+```{r}
+wisc.hclust.clusters <- cutree(wisc.hclust, k=4)
+```
+
+We can use the table() function to compare the cluster membership to the actual diagnoses.
+
+```{r}
+table(wisc.hclust.clusters, diagnosis)
+
+```
+
+## Using different methods
+
+As we discussed in our last class videos there are number of different “methods” we can use to combine points during the hierarchical clustering procedure. These include "single", "complete", "average" and (my favorite) "ward.D2"
+
+>Q12. Which method gives your favorite results for the same data.dist dataset? Explain your reasoning.
+
+Based on the graphs below, I like ward.D2 the most because it provides the clearest distinction on 2 clusters and minimizes within-cluster variance. With "single" it is very difficult to distinguish even 2 clusters since so many are made. The "average" and "complete" methods are much better than "single", but "ward.D2" gives the clearest distinction of 2 clusters out of all of the methods. 
+
+```{r}
+wisc.hclust.single <- hclust(data.dist, method = "single")
+plot(wisc.hclust.single)
+#abline(h=19, col="red", lty=2)
+```
+
+```{r}
+wisc.hclust.average <- hclust(data.dist, method = "average")
+plot(wisc.hclust.average)
+abline(h=14, col="red", lty=2)
+```
+```{r}
+wisc.hclust.ward.D2 <- hclust(data.dist, method = "ward.D2")
+plot(wisc.hclust.ward.D2)
+abline(h=33, col="red", lty=2)
+```
+
+
+
+## Combining PCA and clustering
+
+### Clustering on PCA results
+
+In this final section, you will put together several steps you used earlier and, in doing so, you will experience some of the creativity and open endedness that is typical in unsupervised learning.
+
+Recall from earlier sections that the PCA model required significantly fewer features to describe 70%, 80% and 95% of the variability of the data. In addition to normalizing data and potentially avoiding over-fitting, PCA also uncorrelates the variables, sometimes improving the performance of other modeling techniques.
+
+Let’s see if PCA improves or degrades the performance of hierarchical clustering.
+
+Using the minimum number of principal components required to describe at least 90% of the variability in the data, create a hierarchical clustering model with the linkage `method="ward.D2"`. We use Ward’s criterion here because it is based on multidimensional variance like principal components analysis. Assign the results to `wisc.pr.hclust`.
+
+```{r}
+#Get the first three PCs and pass through dist function to calculate Euclidian distance
+d <- dist(wisc.pr$x[,1:3])
+#cluster
+wisc.pr.hclust <- hclust(d, method="ward.D2")
+#plot
+plot(wisc.pr.hclust)
+abline(h=70, col='red')
+```
+This looks much more promising than our previous clustering results on the original scaled data. Note the two main branches of or dendrogram indicating two main clusters - maybe these are malignant and benign. Let’s find out!
+
+Get my cluster membership vector
+
+```{r}
+grps <- cutree(wisc.pr.hclust, h=70)
+table(grps)
+```
+```{r}
+table(diagnosis)
+```
+
+Make a wee "cross-table"
+
+```{r}
+table(grps, diagnosis)
+```
+So this shows that cluster 1 is indicative of malignant, and cluster 2 is indicative of benign. 
+From this, we can also interpret the number of TP, FP, TN, and FN results. 
+True Positive (TP)=  179
+False Positive (FP) = 24
+True Negative (TN) = 333
+False Negative (FN)= 33
+
+Sensitivity: TP/(TP+FN)
+
+```{r}
+plot(wisc.pr$x[,1:2], col=grps)
+```
+```{r}
+plot(wisc.pr$x[,1:2], col=diagnosis)
+```
+```{r}
+g <- as.factor(grps)
+levels(g)
+```
+
+```{r}
+g <- relevel(g,2)
+levels(g)
+```
+
+```{r}
+# Plot using our re-ordered factor 
+plot(wisc.pr$x[,1:2], col=g)
+```
+```{r}
+## Use the distance along the first 7 PCs for clustering i.e. wisc.pr$x[, 1:7]
+wisc.pr.hclust <- hclust(dist(wisc.pr$x[,1:7]), method="ward.D2")
+```
+
+Cut this hierarchical clustering model into 2 clusters and assign the results to wisc.pr.hclust.clusters.
+
+```{r}
+wisc.pr.hclust.clusters <- cutree(wisc.pr.hclust, k=2)
+
+```
+
+Using table(), compare the results from your new hierarchical clustering model with the actual diagnoses.
+
+> Q13. How well does the newly created model with four clusters separate out the two diagnoses?
+
+```{r}
+table(wisc.pr.hclust.clusters, diagnosis)
+```
+
+```{r}
+table(wisc.df$diagnosis)
+```
+
+This newly created model does pretty well in separating out the two diagnoses, but still has some false positives (28) and false negatives (24). 
+
+> Q14. How well do the hierarchical clustering models you created in previous sections (i.e. before PCA) do in terms of separating the diagnoses? Again, use the table() function to compare the output of each model (wisc.km$cluster and wisc.hclust.clusters) with the vector containing the actual diagnoses.
+
+```{r}
+table(wisc.hclust.clusters, diagnosis)
+```
+Based on the vector with the actual diagnoses, it seems that after PCA, cluster 1 contains mostly M diagnoses and cluster 2 contains mostly B diagnoses, with fewer misclassified cases compared to clustering before PCA.So PCA improved the separation of diagnoses in the hierarchical clustering model

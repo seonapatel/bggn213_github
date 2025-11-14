@@ -1,0 +1,288 @@
+---
+title: "Class 7: Machine Learning 1"
+author: "Seona Patel (PID: A69035519)"
+format: pdf
+---
+
+Today we will begin our exploration of some "classical" machine learning approaches. We will start with clustering.: 
+Let's first make up some data to cluster where we know what the answer should be. 
+
+`rnorm()` gives you a bunch of random numbers within a normal distribution and you can set the mean of it 
+```{r}
+hist(rnorm(1000,))
+```
+```{r}
+x <- c(rnorm(30, mean=-3),
+rnorm(30, mean=3))
+
+y <- rev(x)
+x <- cbind(x,y)
+head(x)
+```
+
+A wee peak at x with `plot()`:
+```{r}
+plot(x)
+```
+The main function in "base" R for K-means clustering is called `kmeans()`
+
+```{r}
+k <- kmeans(x, centers=2)
+k
+```
+
+> Q. How big are the clusters (i.e their size)?
+
+```{r}
+k$size
+```
+
+> Q. What clusters do my data points reside in?
+
+```{r}
+k$cluster
+```
+
+> Q. Make a plot of our data colored by cluster assignment - i.e. Make a result figure...
+
+```{r}
+plot(x, col=c('red', 'blue'))
+```
+```{r}
+plot(x, col=k$cluster)
+points(k$centers, col="blue", pch=15)
+```
+> Q. Cluster with k-means into 4 clusters and plot your results as above. 
+
+```{r}
+k4 <- kmeans(x, centers=4)
+plot(x, col=k4$cluster)
+points(k4$centers, col="blue", pch=15)
+```
+> Q. Run k-means with centers (i.e. values of k) equal 1 to 6 and store the total within-cluser sum of squares for each one and then plot totwithinss vs k
+
+```{r}
+k$tot.withinss
+```
+You can do this the brute force way...or use a for loop
+```{r}
+ans <- NULL
+for (i in 1:6) {
+  ans <- c(ans, kmeans(x, centers=i)$tot.withinss)
+  
+}
+ans 
+```
+
+Make a "scree-plot"
+
+```{r}
+plot(ans, typ='b')
+```
+## Hierarchical Clustering
+
+The main function in "base" R for this is called `hclust()`
+
+```{r}
+# dist is the Euclidian distance
+d <- dist(x)
+hc <- hclust(d)
+hc
+```
+This output is not super useful. Let's plot a clustering tree:
+
+```{r}
+plot(hc)
+abline(h=8, col="red")
+```
+Notice that the numbers less than 30 are on the right and greater than 30 are on the left. The height is the distance by which these are joined together. As you go up the axis, these points are further apart. So you're really looking for the big goalposts/crossbars.
+
+To obtain clusters from our `hclust()` result object, **hc** we "cut" the tree to yield different sub-branches. For this we will use the `cutree()` function
+
+```{r}
+grps <- cutree(hc, h=8)
+grps
+```
+
+```{r}
+plot(x, col=grps)
+```
+```{r}
+library(pheatmap)
+pheatmap(x)
+```
+## Principal Component Analysis (PCA)
+
+```{r}
+url <- "https://tinyurl.com/UK-foods"
+x <- read.csv(url)
+```
+
+> Q1. How many rows and columns are in your new data frame named x? What R functions could you use to answer this questions?
+
+## Complete the following code to find out how many rows and columns are in x?
+```{r}
+dim(x)
+```
+
+```{r}
+# Preview the first 6 rows
+head(x)
+```
+
+```{r}
+# Note how the minus indexing works
+rownames(x) <- x[,1]
+x <- x[,-1]
+head(x)
+```
+```{r}
+dim(x)
+```
+
+```{r}
+x <- read.csv(url, row.names=1)
+head(x)
+```
+
+> Q2. Which approach to solving the ‘row-names problem’ mentioned above do you prefer and why? Is one approach more robust than another under certain circumstances?
+
+I like the second one more because it is more straightforward and easier to not mess up. If you run x <- x[,-1] more than once then you can get rid of more columns that you intended based on how many times you run the code chunk. 
+
+
+```{r}
+# Using base R
+barplot(as.matrix(x), beside=T, col=rainbow(nrow(x)))
+```
+> Q3: Changing what optional argument in the above barplot() function results in the following plot?
+
+```{r}
+barplot(as.matrix(x), beside=F, col=rainbow(nrow(x)))
+```
+Make beside=FALSE to make it a stacked barplot.
+
+
+```{r}
+library(tidyr)
+
+# Convert data to long format for ggplot with `pivot_longer()`
+x_long <- x |> 
+          tibble::rownames_to_column("Food") |> 
+          pivot_longer(cols = -Food, 
+                       names_to = "Country", 
+                       values_to = "Consumption")
+
+dim(x_long)
+```
+```{r}
+head(x_long)
+```
+
+```{r}
+# Create grouped bar plot
+library(ggplot2)
+
+ggplot(x_long) +
+  aes(x = Country, y = Consumption, fill = Food) +
+  geom_col(position = "dodge") +
+  theme_bw()
+```
+>Q4: Changing what optional argument in the above ggplot() code results in a stacked barplot figure?
+
+remove position="dodge" in geom_col()
+```{r}
+ggplot(x_long) +
+  aes(x = Country, y = Consumption, fill = Food) +
+  geom_col() +
+  theme_bw()
+```
+
+>Q5: We can use the pairs() function to generate all pairwise plots for our countries. Can you make sense of the following code and resulting figure? What does it mean if a given point lies on the diagonal for a given plot?
+
+```{r}
+pairs(x, col=rainbow(nrow(x)), pch=16)
+```
+For every plot that is in the first row, the yaxis is England. Same for the other rows, row 2 = Wales in the x-axis. For the first column, England is on the x-axis, 2nd column = Wales = x-axis and so on. Each point is a different food. So if the points are on the diagonal that means both countries roughly consuem the same amount of that food. If the point is below the line that means the country plotted on the xaxis consumes more of it. If it is above the diagonal line that means the country plotted on the yaxis consumes more of that food. 
+
+```{r}
+library(pheatmap)
+
+pheatmap( as.matrix(x) )
+```
+
+
+>Q6. Based on the pairs and heatmap figures, which countries cluster together and what does this suggest about their food consumption patterns? Can you easily tell what the main differences between N. Ireland and the other countries of the UK in terms of this data-set?
+
+Engalnd and Wales are quite similar in their consumption of these foods. It is a bit hard to say what is the main difference between N.Ireland and the rest of the countries. 
+
+
+## PCA to the rescue 
+
+The main function in "base" R for PCA is called `prcomp()`. 
+As we want to do PCA on the food data for the different countries we will want the foods in the columns. 
+
+```{r}
+pca <- prcomp(t(x))
+summary(pca)
+```
+
+Our result object is called `pca` and it has a `$x` component that we will look at first
+
+```{r}
+pca$x
+```
+> Q7. Complete the code below to generate a plot of PC1 vs PC2. The second line adds text labels over the data points.
+
+# Create a data frame for plotting
+```{r}
+df <- as.data.frame(pca$x)
+df$Country <- rownames(df)
+
+```
+
+# Plot PC1 vs PC2 with ggplot
+```{r}
+ggplot(pca$x) +
+  aes(x = PC1, y = PC2, label = rownames(pca$x)) +
+  geom_point(size = 3) +
+  geom_text(vjust = -0.5) +
+  xlim(-270, 500) +
+  xlab("PC1") +
+  ylab("PC2") +
+  theme_bw()
+```
+>Q8. Customize your plot so that the colors of the country names match the colors in our UK and Ireland map and table at start of this document.
+
+```{r}
+cols <- c("orange", "red", "blue", "green")
+ggplot(pca$x) +
+  aes(x = PC1, y = PC2, label = rownames(pca$x), col=cols) +
+  geom_point(size = 3) +
+  geom_text(vjust = -0.5) +
+  xlim(-270, 500) +
+  xlab("PC1") +
+  ylab("PC2") +
+  theme_bw()
+```
+
+Another major result of PCA is the so-called "variable loadings" or `$rotation` that tells us how the original variables (foods) contribute to PCs (i.e. our new axis). 
+
+```{r}
+pca$rotation
+```
+
+Anything positive (>0) is going to be more like N. Ireland (to the right on the PC1 axis)
+
+```{r}
+ggplot(pca$rotation) +
+  aes(PC1, rownames(pca$rotation)) +
+  geom_col()
+```
+> Q9: Generate a similar ‘loadings plot’ for PC2. What two food groups feature prominently and what does PC2 mainly tell us about?
+
+```{r}
+ggplot(pca$rotation) +
+  aes(PC2, rownames(pca$rotation)) +
+  geom_col()
+```
+Mainly soft drinks and fresh potatoes feature prominently. In PC2, if a food has a more positive value that means that means it's more like Scotland, whereas a negative value is more like Wales. Therefore PC2 shows that people in Scotland consume more soft drinks and people in Wales have more fresh potatoes.
