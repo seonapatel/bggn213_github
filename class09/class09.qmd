@@ -1,10 +1,10 @@
 ---
 title: "Class 9: Structural Bioinformatics pt 1"
 author: "Seona Patel (PID: A69035519)"
-format:
-  pdf:
-    fig-width: 8
-    fig-height: 6
+format: html 
+#  pdf:
+#    fig-width: 8
+#    fig-height: 6
 ---
 
 ## The PDB Database
