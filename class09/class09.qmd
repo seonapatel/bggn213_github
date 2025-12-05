@@ -2,6 +2,9 @@
 title: "Class 9: Structural Bioinformatics pt 1"
 author: "Seona Patel (PID: A69035519)"
 format: html 
+prefer-html: true
+
+
 #  pdf:
 #    fig-width: 8
 #    fig-height: 6
@@ -376,7 +379,7 @@ To visualize the major structural variations in the ensemble the function mktrj(
 
 ```{r}
 # Visualize first principal component
-pc1 <- mktrj(pc.xray, pc=1, file="pc_1.pdb")
+#pc1 <- mktrj(pc.xray, pc=1, file="pc_1.pdb")
 ```
 
 
@@ -441,7 +444,7 @@ plot(pc.xray)
 plot(pc.xray, 1:2)
 ```
 ```{r}
-mktrj(pc.xray, file="pca_results.pdb")
+#mktrj(pc.xray, file="pca_results.pdb")
 ```
 
 ```{r}
