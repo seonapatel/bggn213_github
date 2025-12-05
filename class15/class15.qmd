@@ -1,0 +1,27 @@
+---
+title: "Class 14"
+author: "Seona Patel (PID: A69035519)"
+format: pdf
+---
+
+```{r}
+library(readr)
+b <- read_tsv("mm-second.x.zebrafish.tsv")
+```
+```{r}
+colnames(b) <- c("qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore")
+head(b)
+```
+```{r}
+## Asuming your blast results are stored in an object called 'b'
+plot(b$pident  * (b$qend - b$qstart), b$bitscore)
+```
+```{r}
+library(ggplot2)
+ggplot(b, aes(pident, bitscore)) + geom_point(alpha=0.1) 
+```
+```{r}
+ggplot(b, aes((b$pident * (b$qend - b$qstart)), bitscore)) + geom_point(alpha=0.1) + geom_smooth()
+
+```
+

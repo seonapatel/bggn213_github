@@ -1,0 +1,249 @@
+---
+title: "Class 13: RNASeq mini project"
+author: "Seona Patel (PID: A69035519)"
+format: pdf
+toc: true
+---
+
+## Background
+
+Today we will run through a complete RNASeq analysis.
+
+The data comes from GEO entry: GSE37704, which is associated with the following publication:
+
+> Trapnell C, Hendrickson DG, Sauvageau M, Goff L et al. "Differential analysis of gene regulation at transcript resolution with RNA-seq". Nat Biotechnol 2013 Jan;31(1):46-53. PMID: 23222703
+
+The authors report on differential analysis of lung fibroblasts in response to loss of the developmental transcription factor **HOXA1**. Their results and others indicate that HOXA1 is required for lung fibroblast and HeLa cell cycle progression. In particular their analysis show that "loss of HOXA1 results in significant expression level changes in thousands of individual transcripts, along with isoform switching events in key regulators of the cell cycle". For our session we have used their Sailfish gene-level estimated counts and hence are restricted to protein-coding genes only.
+
+
+## Data Import
+```{r}
+counts <- read.csv("GSE37704_featurecounts.csv", row.names = 1)
+metadata <- read.csv("GSE37704_metadata.csv")
+
+```
+
+Check correspondence of `metadata` and `counts` (i.e. that the columns in `counts` match the rows in the `metadata`)
+
+```{r}
+metadata
+```
+```{r}
+head(counts)
+```
+
+```{r}
+colnames(counts)
+```
+```{r}
+metadata$id
+```
+
+Need to remove the length column in counts
+ 
+```{r}
+test_cols <- !all(colnames(counts)[-1] == metadata$id)
+test_cols
+```
+
+```{r}
+ if (!test_cols) {
+   print("Looks like you messed up")
+ }
+```
+
+```{r}
+counts <- counts[,-1]
+```
+
+Check it again:
+```{r}
+all(colnames(counts) == metadata$id)
+```
+
+
+Also lets remove low count genes 
+```{r}
+tot.counts <- rowSums(counts)
+head(tot.counts)
+```
+
+So many genes with 0 counts so let's remove all zero count genes
+
+```{r}
+zero.inds <- tot.counts == 0
+head(zero.inds)
+```
+
+```{r}
+counts <- counts[!zero.inds,]
+head(counts)
+```
+
+
+## Setup for DESeq
+
+```{r, message=FALSE}
+library(DESeq2)
+```
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData = counts,
+                              colData = metadata,
+                              design = ~condition)
+```
+
+
+## Run DESeq
+
+```{r}
+dds <- DESeq(dds)
+```
+
+## Get Results 
+
+```{r}
+res <- results(dds)
+```
+
+```{r}
+head(res)
+```
+
+## Add Annotation
+
+```{r}
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+```
+```{r}
+res$symbol <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), # Our genenames
+                     keytype="ENSEMBL",   # The format of our genenames
+                     column="SYMBOL",     # The new format we want to add
+                     multiVals="first")
+
+res$entrez <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res),
+                     column="ENTREZID",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+res$uniprot <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res),
+                     column="UNIPROT",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+res$genename <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res),
+                     column="GENENAME",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+head(res)
+```
+```{r}
+write.csv(res,file="myresults_annotated.csv")
+```
+
+You can arrange and view the results by the adjusted p-value
+
+```{r}
+ord <- order( res$padj )
+head(res[ord,])
+```
+```{r}
+write.csv(res[ord,], "deseq_results.csv")
+```
+
+## Visualize Results
+```{r}
+library(ggplot2)
+
+mycols <- rep("gray", nrow(res))
+mycols[abs(res$log2FoldChange)>2] <- "blue"
+mycols[res$padj >= 0.05] <- "grey"
+
+ggplot(res) + aes(log2FoldChange, -log(padj)) +
+  geom_point(col=mycols)+
+  geom_vline(xintercept = c(-2,2), col="red")+
+  geom_hline(yintercept = -log(0.05), col = "red")
+   
+```
+
+
+
+## Pathway Analysis
+
+```{r}
+library(pathview)
+library(gage)
+library(gageData)
+data(kegg.sets.hs)
+
+```
+```{r}
+foldchanges = res$log2FoldChange
+names(foldchanges) = res$entrez
+head(foldchanges)
+```
+```{r}
+keggres = gage(foldchanges, gsets=kegg.sets.hs)
+```
+
+```{r}
+head(keggres$less, 3)
+```
+
+Looks like the top pathway is Cell Cycle ("hsa04110").
+
+```{r}
+pathview(gene.data=foldchanges, pathway.id="hsa04110")
+```
+
+![That pathway analysis](hsa04110.pathview.png)
+
+## Let's try GO Analysis and compare to KEGG analysis
+
+```{r}
+data(go.sets.hs)
+data(go.subs.hs)
+# Focus on Biological Process subset of GO
+gobpsets = go.sets.hs[go.subs.hs$BP]
+
+gobpres = gage(foldchanges, gsets=gobpsets)
+
+```
+
+```{r}
+head(gobpres$less)
+```
+```{r}
+lapply(gobpres, head)
+```
+## Reactome Analysis
+
+Some folks really like Reactome (i.e. their webpage viewer) rather than the R package of the same name (available from bioconductor). 
+
+To use the website viewer we want to upload our set of gene symbols for the genes we want to focus on (here those with a P-value <= 0.05). 
+
+```{r}
+sig_genes <- res[res$padj <= 0.05 & !is.na(res$padj), "symbol"]
+print(paste("Total number of significant genes:", length(sig_genes)))
+```
+
+```{r}
+write.table(sig_genes, file="significant_genes.txt", 
+            row.names=FALSE, col.names=FALSE, quote=FALSE)
+```
+
+![Result from Reactome](R-HSA-1640170.png)
+
+## Save results
+
+```{r}
+save(res, counts, metadata, file="my_results.RData")
+```
+
+
