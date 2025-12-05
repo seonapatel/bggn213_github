@@ -40,8 +40,8 @@ specified length: The `sample()` function can be useful here.
 sample(c('A','C','T','G'), size=30, replace=TRUE)
 ```
 
-     [1] "A" "A" "C" "A" "G" "G" "A" "C" "A" "T" "G" "C" "T" "A" "T" "A" "C" "T" "T"
-    [20] "A" "C" "A" "G" "T" "A" "T" "G" "C" "A" "G"
+     [1] "A" "A" "G" "G" "T" "A" "C" "G" "C" "C" "A" "T" "C" "C" "T" "A" "T" "A" "C"
+    [20] "T" "G" "C" "C" "G" "T" "A" "T" "T" "C" "T"
 
 I want a 1 element long character vector that looks like “GACTA”
 
@@ -50,7 +50,7 @@ v <- sample(c('A','C','T','G'), size=30, replace=TRUE)
 paste(v,collapse='')
 ```
 
-    [1] "CAACGCAGGCATAAGCTCAACTCCGGCCCT"
+    [1] "ATAATGGTCGTGAGCCGCCGTACTAGACGT"
 
 ``` r
 generate_dna <- function(size=50) {
@@ -64,7 +64,7 @@ Test it:
 generate_dna(60)
 ```
 
-    [1] "GTTGTGCATTTATAGCTTTATGCTAGGTGAAGTGGTCTCCTACAAAAGTGAAGCATTACG"
+    [1] "CCCTGTTTCAGAAATCTAAATTCCCAACTTCCGAGCATGCATGACACCCCCAGCACTCGC"
 
 ``` r
 fasta <- FALSE
@@ -96,15 +96,15 @@ return(v)}
 generate_fasta(50, TRUE)
 ```
 
-    [1] "CGATGTACTGTACCCGGAACGCATATTATAGACAACAGATGGAAAACTAT"
+    [1] "TGGAGGTTAATTTGGGTCCTTAGAGTGTGGGGAAGAGGTACCAGTTGCGA"
 
 ``` r
 generate_fasta(50, FALSE)
 ```
 
-     [1] "A" "C" "G" "C" "G" "T" "C" "A" "G" "G" "T" "T" "G" "C" "A" "C" "C" "G" "G"
-    [20] "T" "T" "T" "T" "A" "A" "T" "T" "G" "A" "T" "C" "T" "G" "G" "C" "C" "T" "A"
-    [39] "A" "A" "A" "C" "G" "G" "T" "A" "C" "T" "T" "G"
+     [1] "A" "A" "A" "A" "G" "T" "C" "T" "T" "C" "T" "A" "A" "T" "T" "A" "C" "G" "C"
+    [20] "G" "C" "G" "A" "A" "G" "A" "A" "C" "T" "C" "C" "G" "G" "T" "A" "T" "C" "A"
+    [39] "T" "C" "G" "A" "C" "G" "G" "T" "T" "G" "T" "A"
 
 ## A protein generating function
 
@@ -125,7 +125,7 @@ generate_protein <- function(size=50, fasta=TRUE) {
 generate_protein(6)
 ```
 
-    [1] "FCIQTH"
+    [1] "WFWYTI"
 
 Use new `generate_protein()` function to generate random protein
 sequences of lengths between 6 and 12.
@@ -151,19 +151,19 @@ for(i in lengths) {
 ```
 
     >6
-    VTMECN
+    ICRIYK
     >7
-    KIGEWCH
+    EETLLKK
     >8
-    VVSVYSWR
+    GCTMFPFA
     >9
-    SGLPHTYFI
+    STYDACKSR
     >10
-    MHNCLCWCRF
+    QFSGMTRCYE
     >11
-    PPRRAQSVDGI
+    WRAPLLRLPAT
     >12
-    RVSPQLHYSHNV
+    NIECAVPHEPEL
 
 ``` r
 paste(c('barry', 'monika'), "R", sep=" loves ")
@@ -178,5 +178,5 @@ functions, specifically the`sapply()` function in this case.
 sapply(6:12, generate_protein)
 ```
 
-    [1] "AARCTE"       "REFWTFR"      "KAYNHVID"     "ALDTCFQTI"    "SRERQLNDRW"  
-    [6] "FYKLCCCCYNQ"  "KNWNFVYCYDGK"
+    [1] "SNGSRA"       "FSVTTEQ"      "CCQLPQKN"     "TVYMIFWPE"    "VMPKGCLECV"  
+    [6] "RISLCAAIWQA"  "SIYHCMCNIMST"
