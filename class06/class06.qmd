@@ -1,7 +1,7 @@
 ---
 title: "Class 6: R Functions"
 author: "Seona Patel (PID: A69035519)"
-format: pdf
+format: gfm
 toc: true
 ---
 
